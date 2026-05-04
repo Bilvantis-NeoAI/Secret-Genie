@@ -1,0 +1,38 @@
+#!/usr/bin/env sh
+
+# Exit immediately if any command fails
+set -e
+
+# Function to check if a git command exists
+command_exists() {
+    git help -a | grep -q "^  $1$" 2>/dev/null || git config --get-regexp "^alias\.$1$" >/dev/null 2>&1
+}
+
+# Function to run a git command if it exists
+run_if_exists() {
+    local cmd="$1"
+    if command_exists "$cmd"; then
+        echo "Running git $cmd..."
+        git "$cmd"
+        local exit_code=$?
+        if [ $exit_code -ne 0 ]; then
+            echo "git $cmd failed with exit code $exit_code"
+            echo "Push aborted due to security check failure"
+            exit $exit_code
+        fi
+        echo "git $cmd completed successfully"
+    else
+        echo "git $cmd command not found, skipping..."
+    fi
+}
+
+echo "Starting pre-push security checks..."
+
+# Run the security scanning commands in sequence
+# Each command will exit the script immediately if it fails
+run_if_exists "secret-scan"
+run_if_exists "commit-scan"
+run_if_exists "api-guard"
+
+echo "All pre-push security checks completed successfully"
+exit 0 

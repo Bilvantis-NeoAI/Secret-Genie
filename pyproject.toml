@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "secretgenie"
+version = "2.0.0"
+description = "Local, browser-first git-hook manager that catches secrets before they're pushed."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "SecretGenie contributors" }]
+keywords = ["git", "hooks", "secrets", "scanning", "security"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Version Control :: Git",
+    "Topic :: Security",
+]
+dependencies = [
+    "typer>=0.12.0",
+    "rich>=13.7.0",
+    "pyyaml>=6.0",
+    "psutil>=6.0.0",
+    "python-dotenv>=1.0.1",
+]
+
+[project.optional-dependencies]
+build = ["pyinstaller>=6.12.0"]
+
+[project.scripts]
+secretgenie = "genie_cli.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/Bilvantis-NeoAI/Secret-Genie"
+Source = "https://github.com/Bilvantis-NeoAI/Secret-Genie"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["genie_cli*"]
+
+# The hooks tree ships to ~/.genie/ at install time rather than being a
+# Python package, so it's intentionally NOT listed under packages.find.

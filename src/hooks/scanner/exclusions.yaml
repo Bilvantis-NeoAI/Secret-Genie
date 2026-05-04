@@ -1,0 +1,128 @@
+# Genie Secret Scanner Exclusion Configuration
+# This file contains patterns for files and directories to exclude from secret scanning
+
+# File extensions to exclude
+file_extensions:
+  # Compiled/Packaged Artifacts
+  - "*.jar"    # Java Archive files
+  - "*.war"    # Java Web Archive files
+  - "*.ear"    # Java Enterprise Archive files
+  - "*.pyc"    # Python compiled bytecode files
+  - "*.class"  # Compiled Java class files
+  - "*.egg"    # Python package format
+
+  # Log Files
+  - "*.log"    # Standard log files
+  - "*.out"    # Output files
+
+  # Temporary Files
+  - "*.tmp"    # Temporary files
+
+  # IDE and Editor Specific Files
+  - "*.iml"    # IntelliJ IDEA module files
+  - "*.ipr"    # Older IntelliJ IDEA project files
+  - "*.iws"    # Older IntelliJ IDEA workspace files
+  - "*.project" # Eclipse project files
+  - "*.classpath" # Eclipse classpath configuration
+
+  # Operating System Specific Files
+  - "*.DS_Store" # macOS desktop services store
+  - "Thumbs.db"  # Windows thumbnail cache
+
+  # Documentation and Media
+  - "*.md"     # Markdown files
+  - "*.txt"    # Plain text files
+  - "*.pdf"    # PDF documents
+  - "*.png"    # Image files
+  - "*.jpg"    # Image files
+  - "*.jpeg"   # Image files
+  - "*.gif"    # Image files
+  - "*.svg"    # Scalable Vector Graphics
+
+  # Large Data Files
+  - "*.csv"    # Comma Separated Values
+  - "*.jsonl"  # JSON Lines
+  - "*.dat"    # Generic data files
+  - "*.xlsx"   # Excel files
+  - "*.xlsb"   # Excel binary workbook files
+  - "*.xls"    # Excel files (older format)
+  - "*.xlsm"   # Excel macro-enabled workbook files
+  - "*.tsv"    # Tab-separated values
+  - "*.parquet" # Parquet data files
+  - "*.avro"   # Avro data files
+  - "*.orc"    # ORC data files
+  - "*.gz"     # Gzip compressed files
+  - "*.zip"    # Zip archives
+  - "*.tar"    # Tar archives
+  - "*.json"   # JSON data files
+  - "*.xml"    # XML data files
+  - "*.yaml"   # YAML files
+  - "*.yml"    # YAML files
+  
+  # Python specific files
+  - "*.py[cod]" # Python bytecode files (both .pyc and older .pyo)
+  - "*.exec"    # JaCoCo execution data files (for code coverage)
+  - "*.hprof"   # Java heap dump files
+
+  # JavaScript/Web Development
+  - "package-lock.json" # npm lock file
+  - "yarn.lock"        # Yarn lock file
+  - "angular.json"     # Angular CLI configuration
+  
+  # Test Files (any file with "test" in the name)
+  - "**/*test*.*"     # Files with "test" anywhere in the name
+  - "**/*Test*.*"     # Files with "Test" anywhere in the name
+  
+# Directories to exclude
+directories:
+  # Package management directories
+  - "**/node_modules/**"     # JavaScript dependencies
+  - "**/vendor/**"           # Vendored dependencies
+  - "**/egg-info/**"         # Python package information
+  - "**/dist/**"             # Distribution packages
+  - "**/build/**"            # Build output
+  - "**/target/**"           # Maven build output
+
+  # Temporary and cache directories
+  - "**/_pycache_/**"        # Python's bytecode cache
+  - "**/temp/**"             # Temporary directories
+  - "**/tmp/**"              # Temporary directories
+  - "**/.history/**"         # Local history files (various IDEs)
+
+  # IDE specific directories
+  - "**/.idea/**"            # IntelliJ IDEA
+  - "**/.vscode/**"          # Visual Studio Code
+
+  # Environment directories
+  - "**/env/**"              # Python virtual environment
+  - "**/venv/**"             # Python virtual environment
+  - "**/.env/**"             # Python virtual environment
+
+  # Asset directories
+  - "**/assets/**"           # Asset directories (images, fonts, etc.)
+  - "**/docs/**"             # Documentation directories
+  - "**/data/**"             # Data directories
+
+  # Test directories
+  - "**/test/**"             # Test directories
+  - "**/tests/**"            # Test directories
+  - "**/Test/**"             # Test directories with capital T
+  - "**/Tests/**"            # Test directories with capital T
+  - "**/*test*/**"           # Directories with "test" anywhere in the name
+  - "**/*Test*/**"           # Directories with "Test" anywhere in the name
+  
+  # Framework specific directories
+  - "**/public/build/**"     # React production build output
+  - "**/build/**"            # Production build output
+  - "**/coverage/**"         # Code coverage reports
+  - "**/storybook-static/**" # Static build of Storybook components
+  - "**/out-tsc/**"          # TypeScript compilation output (Angular)
+  - "**/lib/**"              # Library directories
+
+# Additional exclusions
+additional_exclusions:
+  # Any other specific patterns that don't fit in the categories above
+  - "**/.git/**"             # Git internal directory
+  - "**/migrations/**"       # Database migration files
+  - "**/fixtures/**"         # Test fixtures
+  - "**/snapshots/**"        # Test snapshots 

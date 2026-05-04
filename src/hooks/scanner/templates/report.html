@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{title}</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.4/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.4/vfs_fonts.js"></script>
+    <style>
+        body {{ 
+            font-family: -apple-system, system-ui, sans-serif; 
+            margin: 20px; 
+            background: {background_color}; 
+        }}
+        .container {{ 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: {container_background}; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+        }}
+        .header-info {{ 
+            background: {header_background}; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin-bottom: 20px;
+            border-left: 4px solid {primary_color};
+        }}
+        .header-info p {{ 
+            margin: 5px 0; 
+            color: #666;
+            font-size: 14px;
+        }}
+        .header-info strong {{ 
+            color: #333;
+            margin-right: 5px;
+        }}
+        table {{ 
+            width: 100%; 
+            border-collapse: collapse; margin-top: 20px;
+            table-layout: fixed;
+        }}
+        th, td {{ 
+            padding: 12px; 
+            text-align: left; 
+            border: 1px solid #ddd;
+            vertical-align: top;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            word-break: break-all;
+            hyphens: auto;
+        }}
+        th {{ background: {primary_color}; color: white; }}
+        tr:nth-child(even) {{ background: #f9f9f9; }}
+        .secret-content {{ 
+            color: {error_color}; 
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-width: 100%;
+            display: block;
+            overflow-x: auto;
+            padding: 4px 8px;
+            margin: 0;
+            border-radius: 4px;
+            background: rgba(211, 47, 47, 0.05);
+        }}
+        .line-number {{ 
+            color: {error_color}; 
+            font-weight: bold; 
+            text-align: center;
+        }}
+        .disallowed-file {{
+            color: {error_color};
+            font-family: monospace;
+        }}
+        .sno {{
+            text-align: center;
+        }}
+        h1, h2 {{ color: {primary_color}; margin-bottom: 20px; }}
+        .download-btn {{
+            padding: 10px 20px;
+            background-color: {primary_color};
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }}
+        .download-btn:hover {{
+            background-color: #053278;
+        }}
+        .tab-container {margin-top: 20px;
+        }
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            background-color: #f0f0f0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .tab-button.active {
+            background-color: {primary_color};
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1>{title}</h1>
+            <button id="downloadButton" class="download-btn">Download as PDF</button>
+        </div>
+        <div class="header-info">
+            <p><strong>Git Author:</strong> {git_metadata[author]}</p>
+            <p><strong>Repository:</strong> {git_metadata[repo_name]}</p>
+            <p><strong>Branch:</strong> {git_metadata[branch]}</p>
+            <p><strong>Commit Hash:</strong> {git_metadata[commit_hash]}</p>
+            <p><strong>Timestamp:</strong> {git_metadata[timestamp]}</p>
+        </div>
+        {disallowed_files_section}
+
+        <div class="tab-container">
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="showTab('diff-scan')">Diff Scan Results</button>
+                <button class="tab-button" onclick="showTab('repo-scan')">Repository Scan Results</button>
+            </div>
+
+            <div id="diff-scan" class="tab-content active">
+                <h2>Diff Scan - Potential Secrets Found:</h2>
+                <table id="diffSecretsTable">
+                    <tr>
+                        <th style="width:5%">S.No</th>
+                        <th style="width:25%">Filename</th>
+                        <th style="width:10%">Line #</th>
+                        <th style="width:60%">Secret</th>
+                    </tr>
+                    {diff_secrets_table_rows}
+                </table>
+            </div>
+
+            <div id="repo-scan" class="tab-content">
+                <h2>Repository Scan - Potential Secrets Found:</h2>
+                <table id="repoSecretsTable">
+                    <tr>
+                        <th style="width:5%">S.No</th>
+                        <th style="width:25%">Filename</th>
+                        <th style="width:10%">Line #</th>
+                        <th style="width:60%">Secret</th>
+                    </tr>
+                    {repo_secrets_table_rows}
+                </table>
+            </div>
+        </div>
+    </div>
+    <script>
+    function showTab(tabId) {
+        // Hide all tabs
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.classList.remove('active');
+        });
+
+        // Show selected tab
+        document.getElementById(tabId).classList.add('active');
+        document.querySelector(`[onclick="showTab('${tabId}')"]`).classList.add('active');
+    }
+
+    document.getElementById("downloadButton").addEventListener("click", () => {
+        // Get diff scan secrets
+        const diffSecretsTable = document.getElementById("diffSecretsTable");
+        const diffSecretRows = diffSecretsTable.querySelectorAll("tr:not(:first-child)");
+        const diffSecrets = Array.from(diffSecretRows).map((row, index) => {
+            const cells = row.querySelectorAll("td");
+            return {
+                sno: cells[0]?.innerText || "",
+                filename: cells[1]?.innerText || "",
+                lineNumber: cells[2]?.innerText || "",
+                secret: cells[3]?.innerText || ""
+            };
+        });
+
+        // Get repo scan secrets
+        const repoSecretsTable = document.getElementById("repoSecretsTable");
+        const repoSecretRows = repoSecretsTable.querySelectorAll("tr:not(:first-child)");
+        const repoSecrets = Array.from(repoSecretRows).map((row, index) => {
+            const cells = row.querySelectorAll("td");
+            return {
+                sno: cells[0]?.innerText || "",
+                filename: cells[1]?.innerText || "",
+                lineNumber: cells[2]?.innerText || "",
+                secret: cells[3]?.innerText || ""
+            };
+        });
+
+        // Create file name using current date
+        const currentDate = new Date();
+        const formattedDate = currentDate.toLocaleDateString('en-GB', {
+            day: '2-digit', month: 'short', year: 'numeric'
+        }).replace(' ', '_').replace(',', '');
+        const fileName = 'scan_report_' + formattedDate + '.pdf';
+
+        // Create the PDF document definition
+        const docDefinition = {
+            pageOrientation: 'landscape',
+            content: [
+                { text: '{title}', style: 'header' },
+                { text: `Git Author: {git_metadata[author]}`, style: 'info' },
+                { text: `Repository: {git_metadata[repo_name]}`, style: 'info' },
+                { text: `Branch: {git_metadata[branch]}`, style: 'info' },
+                { text: `Commit Hash: {git_metadata[commit_hash]}`, style: 'info' },
+                { text: `Timestamp: {git_metadata[timestamp]}`, style: 'info' },
+                
+                // Diff Scan Section
+                { text: 'Diff Scan - Potential Secrets Found:', style: 'subheader' },
+                {
+                    table: {
+                        headerRows: 1,
+                        widths: ['5%', '25%', '10%', '60%'],
+                        body: [
+                            [
+                                { text: 'S.No', fillColor: '#E9E5E5', bold: true, alignment: 'center' },
+                                { text: 'Filename', fillColor: '#E9E5E5', bold: true },
+                                { text: 'Line #', fillColor: '#E9E5E5', bold: true, alignment: 'center' },
+                                { text: 'Secret', fillColor: '#E9E5E5', bold: true }
+                            ],
+                            ...diffSecrets.map((secret, index) => [
+                                { text: secret.sno, alignment: 'center' },
+                                secret.filename,
+                                { text: secret.lineNumber, alignment: 'center' },
+                                secret.secret
+                            ])
+                        ]
+                    },
+                    margin: [0, 0, 0, 20]
+                },
+
+                // Repo Scan Section
+                { text: 'Repository Scan - Potential Secrets Found:', style: 'subheader' },
+                {
+                    table: {
+                        headerRows: 1,
+                        widths: ['5%', '25%', '10%', '60%'],
+                        body: [
+                            [
+                                { text: 'S.No', fillColor: '#E9E5E5', bold: true, alignment: 'center' },
+                                { text: 'Filename', fillColor: '#E9E5E5', bold: true },
+                                { text: 'Line #', fillColor: '#E9E5E5', bold: true, alignment: 'center' },
+                                { text: 'Secret', fillColor: '#E9E5E5', bold: true }
+                            ],
+                            ...repoSecrets.map((secret, index) => [
+                                { text: secret.sno, alignment: 'center' },
+                                secret.filename,
+                                { text: secret.lineNumber, alignment: 'center' },
+                                secret.secret
+                            ])
+                        ]
+                    }
+                }
+            ],
+            styles: {
+                header: {
+                    fontSize: 18,
+                    bold: true,
+                    alignment: 'center',
+                    margin: [0, 0, 0, 10]
+                },
+                subheader: {
+                    fontSize: 14,
+                    bold: true,
+                    margin: [0, 10, 0, 5]
+                },
+                info: {
+                    fontSize: 12,
+                    margin: [0, 2, 0, 2]
+                }
+            }
+        };
+
+        // Generate and download the PDF
+        pdfMake.createPdf(docDefinition).download(fileName);
+    });
+    </script>
+</body>
+</html> 
