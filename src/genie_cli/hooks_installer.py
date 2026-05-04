@@ -168,7 +168,7 @@ def install() -> bool:
     if is_installed():
         console.print("[genie.ok]✓[/] Hooks already installed.")
         console.print(
-            "  To reinstall: [genie.kbd] genie uninstall [/] then [genie.kbd] genie install [/]"
+            "  To reinstall: [genie.kbd] secretgenie uninstall [/] then [genie.kbd] secretgenie install [/]"
         )
         return True
 

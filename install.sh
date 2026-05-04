@@ -128,18 +128,91 @@ Then re-run this installer."
     ok "git identity: $name <$email>"
 }
 
-check_user_bin_on_path() {
+detect_user_bin() {
     USER_BIN="$(python3 -m site --user-base)/bin"
-    if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
-        PATH_WARNED=1
-        warn "$USER_BIN is not on your PATH."
-        say "   After install, add this line to your shell rc (~/.bashrc, ~/.zshrc, etc.):"
-        say "       ${BOLD}export PATH=\"$USER_BIN:\$PATH\"${RESET}"
-        say "   Then reload: ${BOLD}source ~/.bashrc${RESET} (or open a new terminal)."
-    else
-        PATH_WARNED=0
+    if [[ ":$PATH:" == *":$USER_BIN:"* ]]; then
+        PATH_ALREADY_ON=1
         ok "User bin on PATH ($USER_BIN)"
+    else
+        PATH_ALREADY_ON=0
     fi
+}
+
+shell_rc_file() {
+    # Returns the best shell rc file for the current user, one of:
+    #   ~/.zshrc, ~/.bashrc, ~/.bash_profile, ~/.config/fish/config.fish, ~/.profile
+    local shell_name
+    shell_name="$(basename "${SHELL:-/bin/bash}")"
+    case "$shell_name" in
+        zsh)
+            printf "%s\n" "$HOME/.zshrc"
+            ;;
+        bash)
+            # macOS bash traditionally sources ~/.bash_profile on login;
+            # Linux bash uses ~/.bashrc for interactive shells. Prefer the
+            # file the user already has; fall back by platform.
+            if [ -f "$HOME/.bashrc" ]; then
+                printf "%s\n" "$HOME/.bashrc"
+            elif [ "$(uname)" = "Darwin" ]; then
+                printf "%s\n" "$HOME/.bash_profile"
+            else
+                printf "%s\n" "$HOME/.bashrc"
+            fi
+            ;;
+        fish)
+            printf "%s\n" "$HOME/.config/fish/config.fish"
+            ;;
+        *)
+            # Unknown shell — ~/.profile is sourced by most POSIX login shells.
+            printf "%s\n" "$HOME/.profile"
+            ;;
+    esac
+}
+
+update_shell_rc() {
+    if [ "$PATH_ALREADY_ON" = "1" ]; then
+        # User bin is already on PATH from somewhere — nothing to do.
+        return
+    fi
+    if [ "${GENIE_SKIP_PATH_UPDATE:-0}" = "1" ]; then
+        warn "Skipping PATH update (GENIE_SKIP_PATH_UPDATE=1 set)."
+        say "   Add this line yourself to your shell rc when you're ready:"
+        say "       ${BOLD}export PATH=\"$USER_BIN:\$PATH\"${RESET}"
+        PATH_FIX_MESSAGE="manual"
+        return
+    fi
+
+    local rc_file marker_begin marker_end
+    rc_file="$(shell_rc_file)"
+    marker_begin="# >>> SecretGenie PATH (managed by install.sh) >>>"
+    marker_end="# <<< SecretGenie PATH <<<"
+
+    mkdir -p "$(dirname "$rc_file")"
+    touch "$rc_file"
+
+    # Idempotent: if our marker is already present, do nothing.
+    if grep -qF "$marker_begin" "$rc_file"; then
+        ok "PATH already configured in ${rc_file/#$HOME/~}"
+        export PATH="$USER_BIN:$PATH"
+        PATH_FIX_MESSAGE="applied:$rc_file"
+        return
+    fi
+
+    {
+        printf "\n%s\n" "$marker_begin"
+        if [ "$(basename "${SHELL:-/bin/bash}")" = "fish" ]; then
+            printf 'fish_add_path "%s"\n' "$USER_BIN"
+        else
+            printf 'export PATH="%s:$PATH"\n' "$USER_BIN"
+        fi
+        printf "%s\n" "$marker_end"
+    } >> "$rc_file"
+
+    # Make the new PATH effective for the rest of this install script
+    # (so secretgenie install --auto can be found by short name too).
+    export PATH="$USER_BIN:$PATH"
+    PATH_FIX_MESSAGE="applied:$rc_file"
+    ok "Added $USER_BIN to PATH in ${rc_file/#$HOME/~}"
 }
 
 # ---------------------------------------------------------------------------
@@ -206,9 +279,21 @@ final_message() {
     say "${BOLD}${GREEN}All set!${RESET}"
     say ""
     say "Next steps:"
-    if [ "${PATH_WARNED:-0}" = "1" ]; then
-        say "  ${YELLOW}•${RESET} First, add ${BOLD}$USER_BIN${RESET} to your PATH (see warning above)"
-    fi
+
+    case "${PATH_FIX_MESSAGE:-}" in
+        applied:*)
+            local rc="${PATH_FIX_MESSAGE#applied:}"
+            say "  • Reload your shell to pick up the new PATH:"
+            say "       ${BOLD}source ${rc/#$HOME/~}${RESET}"
+            say "    (or just open a new terminal)"
+            ;;
+        manual)
+            say "  ${YELLOW}•${RESET} Add ${BOLD}$USER_BIN${RESET} to your PATH (see instructions above)"
+            ;;
+        *)
+            # PATH was already configured — nothing extra to do.
+            ;;
+    esac
     say "  • Run ${BOLD}secretgenie${RESET} to open the dashboard in your browser"
     say "  • Your next ${BOLD}git push${RESET} will be scanned automatically"
     say "  • If secrets are found, a browser tab opens for you to approve or abort"
@@ -231,10 +316,11 @@ main() {
     check_pip
     check_git
     check_git_identity
-    check_user_bin_on_path
+    detect_user_bin
     say ""
     fetch_source
     install_package
+    update_shell_rc
     run_first_time_setup
     final_message
 }

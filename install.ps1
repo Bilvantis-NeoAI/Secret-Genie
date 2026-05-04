@@ -126,20 +126,44 @@ Then re-run this installer.
     Write-Ok "git identity: $name <$email>"
 }
 
-function Check-UserBinOnPath {
+function Detect-UserBin {
     $userBase = (Invoke-Python -Args @('-m','site','--user-base')).Trim()
     $script:UserBin = Join-Path $userBase 'Scripts'   # Windows uses Scripts, not bin
-    $pathSegments = $env:PATH -split ';'
-    if ($pathSegments -notcontains $script:UserBin) {
-        $script:PathWarned = $true
-        Write-Warn "$($script:UserBin) is not on your PATH."
-        Write-Host "   After install, add it to PATH (one-time):" -ForegroundColor DarkGray
-        Write-Host "       setx PATH `"$($script:UserBin);%PATH%`"" -ForegroundColor White
-        Write-Host "   Open a new PowerShell window for the change to take effect." -ForegroundColor DarkGray
-    } else {
-        $script:PathWarned = $false
+    $segments = $env:PATH -split ';'
+    if ($segments -contains $script:UserBin) {
+        $script:PathAlreadyOn = $true
         Write-Ok "User Scripts on PATH ($($script:UserBin))"
+    } else {
+        $script:PathAlreadyOn = $false
     }
+}
+
+function Update-UserPath {
+    # This is a per-user PATH update via the registry — no admin rights needed.
+    # The change persists across sessions but only reaches new processes.
+    if ($script:PathAlreadyOn) { return }
+    if ($env:GENIE_SKIP_PATH_UPDATE -eq '1') {
+        Write-Warn "Skipping PATH update (GENIE_SKIP_PATH_UPDATE=1 set)."
+        Write-Host "   Add $($script:UserBin) to your user PATH manually when you're ready." -ForegroundColor DarkGray
+        $script:PathFixMessage = 'manual'
+        return
+    }
+
+    $currentUserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    if (-not $currentUserPath) { $currentUserPath = '' }
+
+    $userSegments = $currentUserPath -split ';' | Where-Object { $_ }
+    if ($userSegments -notcontains $script:UserBin) {
+        $newUserPath = if ($currentUserPath) { "$($script:UserBin);$currentUserPath" } else { $script:UserBin }
+        [Environment]::SetEnvironmentVariable('Path', $newUserPath, 'User')
+        Write-Ok "Added $($script:UserBin) to your user PATH (persists across sessions)"
+    } else {
+        Write-Ok "User PATH already contains $($script:UserBin)"
+    }
+
+    # Make it effective for the rest of this install script too
+    $env:PATH = "$($script:UserBin);$env:PATH"
+    $script:PathFixMessage = 'applied'
 }
 
 # ---- Install steps -------------------------------------------------------
@@ -210,8 +234,13 @@ function Final-Message {
     Write-Host "All set!" -ForegroundColor Green
     Write-Host ""
     Write-Host "Next steps:"
-    if ($script:PathWarned) {
-        Write-Host "  - First, add $($script:UserBin) to PATH (see warning above)" -ForegroundColor Yellow
+    switch ($script:PathFixMessage) {
+        'applied' {
+            Write-Host "  - Open a new PowerShell window to pick up the updated PATH"
+        }
+        'manual' {
+            Write-Host "  - Add $($script:UserBin) to PATH (see instructions above)" -ForegroundColor Yellow
+        }
     }
     Write-Host "  - Run 'secretgenie' to open the dashboard in your browser"
     Write-Host "  - Your next 'git push' will be scanned automatically"
@@ -232,9 +261,10 @@ Check-Python
 Check-Pip
 Check-Git
 Check-GitIdentity
-Check-UserBinOnPath
+Detect-UserBin
 Write-Host ""
 Fetch-Source
 Install-Package
+Update-UserPath
 Run-FirstTimeSetup
 Final-Message
