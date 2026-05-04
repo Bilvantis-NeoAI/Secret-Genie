@@ -60,7 +60,32 @@ function Resolve-PythonCommand {
 
 function Invoke-Python {
     param([Parameter(Mandatory)][string[]]$Args)
-    & $script:PythonCmd @Args
+    # Under PS 5.1 with $ErrorActionPreference='Stop', any line a native
+    # command writes to stderr (e.g. pip's "scripts not on PATH" warning) is
+    # wrapped as a NativeCommandError and terminates the script even when the
+    # exe returned exit code 0. Relax to 'Continue' for the call and rely on
+    # $LASTEXITCODE checks in the callers for real failures.
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & $script:PythonCmd @Args
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+}
+
+function Invoke-Native {
+    param(
+        [Parameter(Mandatory)][string]$Command,
+        [Parameter(ValueFromRemainingArguments=$true)][string[]]$Args
+    )
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & $Command @Args
+    } finally {
+        $ErrorActionPreference = $prev
+    }
 }
 
 # ---- Prereq checks -------------------------------------------------------
@@ -135,8 +160,16 @@ Then re-run this installer.
 }
 
 function Detect-UserBin {
-    $userBase = (Invoke-Python -Args @('-m','site','--user-base')).Trim()
-    $script:UserBin = Join-Path $userBase 'Scripts'   # Windows uses Scripts, not bin
+    # `site --user-base` gives %APPDATA%\Python but the actual scripts dir on
+    # Windows is %APPDATA%\Python\Python<XY>\Scripts. Ask sysconfig for the
+    # exact path so we don't guess wrong on 3.14+ etc.
+    # Single quotes inside the Python snippet are doubled (PS escape for a
+    # literal single quote inside a single-quoted string). Avoid double quotes
+    # here - Windows argument parsing strips them before py.exe sees them.
+    $script:UserBin = (Invoke-Python -Args @('-c','import sysconfig; print(sysconfig.get_path(''scripts'', ''nt_user''))')).Trim()
+    if (-not $script:UserBin) {
+        Fail "Could not determine Python user scripts directory."
+    }
     $segments = $env:PATH -split ';'
     if ($segments -contains $script:UserBin) {
         $script:PathAlreadyOn = $true
@@ -191,14 +224,14 @@ function Fetch-Source {
 
     if (Test-Path (Join-Path $InstallDir '.git')) {
         Write-Info "Updating existing source at $InstallDir..."
-        git -C $InstallDir pull --ff-only --quiet
+        Invoke-Native -Command 'git' -Args @('-C',$InstallDir,'pull','--ff-only','--quiet')
         if ($LASTEXITCODE -ne 0) { Fail "git pull failed. Fix conflicts manually, or remove $InstallDir and re-run." }
         Write-Ok "Source updated"
     } elseif (Test-Path $InstallDir) {
         Fail "$InstallDir exists but is not a git repo. Remove it and re-run."
     } else {
         Write-Info "Cloning $RepoUrl into $InstallDir..."
-        git clone --quiet --depth 1 $RepoUrl $InstallDir
+        Invoke-Native -Command 'git' -Args @('clone','--quiet','--depth','1',$RepoUrl,$InstallDir)
         if ($LASTEXITCODE -ne 0) { Fail "git clone failed. Check network and that $RepoUrl is correct." }
         Write-Ok "Source cloned"
     }
@@ -207,8 +240,8 @@ function Fetch-Source {
 
 function Install-Package {
     Write-Info "Installing SecretGenie (pip install --user -e)..."
-    Invoke-Python -Args @('-m','pip','install','--user','--quiet','--upgrade','pip>=24.0') 2>$null
-    Invoke-Python -Args @('-m','pip','install','--user','--quiet','--editable',$script:InstallDir)
+    Invoke-Python -Args @('-m','pip','install','--user','--quiet','--no-warn-script-location','--upgrade','pip>=24.0')
+    Invoke-Python -Args @('-m','pip','install','--user','--quiet','--no-warn-script-location','--editable',$script:InstallDir)
     if ($LASTEXITCODE -ne 0) {
         Fail @"
 pip install failed. Run without --quiet to see the full error:
@@ -228,7 +261,19 @@ function Run-FirstTimeSetup {
         Fail "secretgenie command was not created in $($script:UserBin). Install may be incomplete."
     }
     Write-Info "Running first-time setup (git hook registration)..."
-    & $genieBin install --auto
+    # Python 3.14 on Windows still defaults stdout to cp1252, which can't
+    # encode the Unicode glyphs Rich uses in SecretGenie's banner. Force
+    # UTF-8 for the child process so the install banner prints cleanly.
+    $prevUtf8  = $env:PYTHONUTF8
+    $prevIoEnc = $env:PYTHONIOENCODING
+    $env:PYTHONUTF8 = '1'
+    $env:PYTHONIOENCODING = 'utf-8'
+    try {
+        Invoke-Native -Command $genieBin -Args @('install','--auto')
+    } finally {
+        $env:PYTHONUTF8 = $prevUtf8
+        $env:PYTHONIOENCODING = $prevIoEnc
+    }
     if ($LASTEXITCODE -ne 0) {
         Fail @"
 First-time setup failed. Try running manually:
