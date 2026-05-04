@@ -27,14 +27,14 @@ $MinPyMajor = 3
 $MinPyMinor = 9
 
 # ---- Output helpers ------------------------------------------------------
-function Write-Info($msg)  { Write-Host "→ $msg" -ForegroundColor Blue }
-function Write-Ok($msg)    { Write-Host "✓ $msg" -ForegroundColor Green }
-function Write-Warn($msg)  { Write-Host "! $msg" -ForegroundColor Yellow }
-function Fail($msg)        { Write-Host "✗ $msg" -ForegroundColor Red; exit 1 }
+function Write-Info($msg)  { Write-Host "> $msg" -ForegroundColor Blue }
+function Write-Ok($msg)    { Write-Host "[OK] $msg" -ForegroundColor Green }
+function Write-Warn($msg)  { Write-Host "[!] $msg" -ForegroundColor Yellow }
+function Fail($msg)        { Write-Host "[X] $msg" -ForegroundColor Red; exit 1 }
 
 function Banner {
     Write-Host ""
-    Write-Host "✦ SecretGenie installer" -ForegroundColor Cyan
+    Write-Host "** SecretGenie installer **" -ForegroundColor Cyan
     Write-Host "Local, browser-first git hook manager for catching secrets before push." -ForegroundColor DarkGray
     Write-Host ""
 }
@@ -82,13 +82,19 @@ Python 3 is not installed or not on PATH.
    During install, tick 'Add python.exe to PATH'.
 "@
     }
-    $vStr = Invoke-Python -Args @('-c', 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-    $vStr = $vStr.Trim()
-    $major, $minor = $vStr.Split('.')
-    if ([int]$major -lt $MinPyMajor -or ([int]$major -eq $MinPyMajor -and [int]$minor -lt $MinPyMinor)) {
-        Fail "Python $vStr is too old — need Python $MinPyMajor.$MinPyMinor or newer."
+    # Avoid embedding a Python f-string here. PowerShell 5's parser
+    # mis-tokenises the `{...}` inside single-quoted args on some hosts.
+    # `python --version` gives us everything we need.
+    $vOutput = (& $script:PythonCmd --version 2>&1) -join ' '
+    if ($vOutput -notmatch 'Python\s+(\d+)\.(\d+)') {
+        Fail "Could not detect Python version (got: $vOutput)"
     }
-    Write-Ok "Python $vStr ($script:PythonCmd)"
+    $major = [int]$matches[1]
+    $minor = [int]$matches[2]
+    if ($major -lt $MinPyMajor -or ($major -eq $MinPyMajor -and $minor -lt $MinPyMinor)) {
+        Fail "Python $major.$minor is too old - need Python $MinPyMajor.$MinPyMinor or newer."
+    }
+    Write-Ok "Python $major.$minor ($script:PythonCmd)"
 }
 
 function Check-Pip {
@@ -139,7 +145,7 @@ function Detect-UserBin {
 }
 
 function Update-UserPath {
-    # This is a per-user PATH update via the registry — no admin rights needed.
+    # This is a per-user PATH update via the registry - no admin rights needed.
     # The change persists across sessions but only reaches new processes.
     if ($script:PathAlreadyOn) { return }
     if ($env:GENIE_SKIP_PATH_UPDATE -eq '1') {
