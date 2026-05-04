@@ -1,7 +1,22 @@
 """Shared Rich console and theme for SecretGenie."""
 
+import sys
+
 from rich.console import Console
 from rich.theme import Theme
+
+# Python on Windows still defaults stdout/stderr to the legacy ANSI code page
+# (cp1252 for en-US installs). Our banner uses the '✦' (U+2726) glyph, which
+# can't round-trip through cp1252 and blows up Rich's legacy_windows_render
+# path with UnicodeEncodeError on every CLI invocation. Force UTF-8 here so
+# the CLI works regardless of the active code page. Safe on non-Windows and
+# on already-UTF-8 streams; no-ops if reconfigure isn't available (e.g.
+# redirected output or exotic stream wrappers).
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+    except (AttributeError, OSError, ValueError):
+        pass
 
 GENIE_THEME = Theme(
     {
