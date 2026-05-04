@@ -81,16 +81,21 @@ winget install --id Git.Git -e
 git config --global user.name "Your Name"
 git config --global user.email "you@example.com"
 
-# 2. Install SecretGenie
-iex (iwr -UseBasicParsing 'https://raw.githubusercontent.com/Bilvantis-NeoAI/Secret-Genie/main/install.ps1').Content
+# 2. Install SecretGenie (one-liner — copy and paste as-is)
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; iex (iwr -UseBasicParsing 'https://raw.githubusercontent.com/Bilvantis-NeoAI/Secret-Genie/main/install.ps1').Content
 
-# 3. Open a NEW PowerShell window so the updated PATH is picked up
-#    (PowerShell doesn't re-read environment in the current session.)
+# 3. Open a NEW PowerShell window so the updated PATH is picked up.
+#    Start Menu → Windows PowerShell. If `secretgenie` is still "not
+#    recognized" there, explorer.exe missed the PATH-change broadcast;
+#    either log off/in, OR refresh PATH in-place with:
+#      $env:PATH = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
 
 # 4. Verify (in the new window)
 secretgenie --version   # → ✦ SecretGenie v2.0.0
 secretgenie             # opens the dashboard in your browser
 ```
+
+The `SecurityProtocol = Tls12` bit is only needed on Windows 10 builds before 1903 / older PowerShell 5.1 where TLS 1.0 is still the default; on everything newer it's a no-op. Leaving it in keeps the one-liner safe to copy-paste anywhere.
 
 If you'd rather not use `winget`, download Python 3.9+ from [python.org](https://www.python.org/downloads/windows/) (tick **Add python.exe to PATH** during install) and Git from [git-scm.com](https://git-scm.com/download/win).
 

@@ -30,7 +30,13 @@ $MinPyMinor = 9
 function Write-Info($msg)  { Write-Host "> $msg" -ForegroundColor Blue }
 function Write-Ok($msg)    { Write-Host "[OK] $msg" -ForegroundColor Green }
 function Write-Warn($msg)  { Write-Host "[!] $msg" -ForegroundColor Yellow }
-function Fail($msg)        { Write-Host "[X] $msg" -ForegroundColor Red; exit 1 }
+# We `throw` rather than `exit 1` so the one-line `iex (iwr ...).Content`
+# install pattern doesn't nuke the user's PowerShell window on failure.
+# `exit` inside an `iex`'d scriptblock terminates the host runspace (i.e.
+# closes the user's shell). `throw` unwinds cleanly; the host just displays
+# the error in red and returns to the prompt. `-File` callers still see a
+# non-zero exit because an unhandled throw causes PowerShell to exit 1.
+function Fail($msg)        { Write-Host "[X] $msg" -ForegroundColor Red; throw $msg }
 
 function Banner {
     Write-Host ""
