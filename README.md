@@ -8,47 +8,182 @@ both dark and light modes. Pure regex + Shannon entropy, no cloud calls.
 
 ## Quick start
 
-### One-line install (macOS / Linux / WSL)
+The installer is the same shape everywhere: check prereqs → clone source to your home directory → `pip install --user -e .` → register the git pre-push hook → add the user-bin directory to PATH. **No sudo, no admin**, nothing written outside your home / user profile.
+
+> **Prerequisites on every platform**
+> - Python **3.9+**
+> - `pip` (bundled with Python on most installs)
+> - `git` with `user.name` and `user.email` configured globally
+>
+> The installer verifies all of these before touching anything and prints an exact fix for whatever is missing.
+
+### macOS
 
 ```bash
+# 1. Prereqs (skip the ones you already have)
+brew install python@3.12 git
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+
+# 2. Install SecretGenie
 curl -sSL https://raw.githubusercontent.com/Bilvantis-NeoAI/Secret-Genie/main/install.sh | bash
+
+# 3. Reload your shell so the new PATH entry is picked up
+source ~/.zshrc         # zsh (default on macOS 10.15+)
+# or: source ~/.bash_profile    # if you use bash
+
+# 4. Verify
+secretgenie --version   # → ✦ SecretGenie v2.0.0
+secretgenie             # opens the dashboard in your browser
 ```
 
-Prefer to review before running:
+### Linux (Debian / Ubuntu / WSL)
 
 ```bash
+# 1. Prereqs
+sudo apt update
+sudo apt install -y python3 python3-pip git
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+
+# 2. Install SecretGenie
+curl -sSL https://raw.githubusercontent.com/Bilvantis-NeoAI/Secret-Genie/main/install.sh | bash
+
+# 3. Reload your shell
+source ~/.bashrc        # bash (most common on Linux)
+# or: source ~/.zshrc           # if you use zsh
+
+# 4. Verify
+secretgenie --version
+secretgenie
+```
+
+### Linux (Fedora / RHEL / CentOS)
+
+```bash
+# 1. Prereqs
+sudo dnf install -y python3 python3-pip git
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+
+# 2–4. Same as Debian/Ubuntu above
+curl -sSL https://raw.githubusercontent.com/Bilvantis-NeoAI/Secret-Genie/main/install.sh | bash
+source ~/.bashrc
+secretgenie --version
+```
+
+### Windows (PowerShell 5+)
+
+```powershell
+# 1. Prereqs (skip if already installed)
+winget install --id Python.Python.3.12 -e
+winget install --id Git.Git -e
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+
+# 2. Install SecretGenie
+iex (iwr -UseBasicParsing 'https://raw.githubusercontent.com/Bilvantis-NeoAI/Secret-Genie/main/install.ps1').Content
+
+# 3. Open a NEW PowerShell window so the updated PATH is picked up
+#    (PowerShell doesn't re-read environment in the current session.)
+
+# 4. Verify (in the new window)
+secretgenie --version   # → ✦ SecretGenie v2.0.0
+secretgenie             # opens the dashboard in your browser
+```
+
+If you'd rather not use `winget`, download Python 3.9+ from [python.org](https://www.python.org/downloads/windows/) (tick **Add python.exe to PATH** during install) and Git from [git-scm.com](https://git-scm.com/download/win).
+
+### Review before running (all platforms)
+
+If piping `curl | bash` / `iex` makes you uncomfortable (fair), download and read first:
+
+```bash
+# macOS / Linux / WSL
 curl -sSLo install-secretgenie.sh https://raw.githubusercontent.com/Bilvantis-NeoAI/Secret-Genie/main/install.sh
 less install-secretgenie.sh
 bash install-secretgenie.sh
 ```
 
-### One-line install (Windows PowerShell)
-
 ```powershell
-iex (iwr -UseBasicParsing 'https://raw.githubusercontent.com/Bilvantis-NeoAI/Secret-Genie/main/install.ps1').Content
+# Windows
+iwr -UseBasicParsing 'https://raw.githubusercontent.com/Bilvantis-NeoAI/Secret-Genie/main/install.ps1' -OutFile install-secretgenie.ps1
+notepad install-secretgenie.ps1
+powershell -ExecutionPolicy Bypass -File install-secretgenie.ps1
 ```
-
-Either script:
-
-1. Verifies prerequisites (Python 3.9+, pip, git, git identity, writable user-bin on PATH).
-2. Clones the source tree to `~/.secretgenie/src` (or `%USERPROFILE%\.secretgenie\src`).
-3. Runs `pip install --user -e .` so the `secretgenie` command is on your PATH.
-4. Runs `secretgenie install --auto` to register the git pre-push hook.
-
-If anything is missing, the installer fails loudly with an exact remediation message. Nothing is installed outside your home directory; no `sudo`.
 
 ### Manual install (from source)
 
 ```bash
+# macOS / Linux / WSL
+git clone https://github.com/Bilvantis-NeoAI/Secret-Genie.git
+cd Secret-Genie
+python3 -m pip install --user -e .
+secretgenie install               # opens the install wizard
+```
+
+```powershell
+# Windows
 git clone https://github.com/Bilvantis-NeoAI/Secret-Genie.git
 cd Secret-Genie
 python -m pip install --user -e .
-secretgenie install               # opens the install wizard in your browser
+secretgenie install
 ```
 
 ### Shipping a pre-built binary
 
-Run `./build.sh` (macOS/Linux) or `build.bat` (Windows). The output is `dist/secretgenie[.exe]`. Drop it on your PATH and use `secretgenie install`.
+If your users can't run Python directly:
+
+```bash
+./build.sh                    # macOS / Linux  → dist/secretgenie
+```
+```batch
+build.bat                     :: Windows       → dist\secretgenie.exe
+```
+
+Drop the resulting binary on PATH and run `secretgenie install`.
+
+### Updating
+
+```bash
+# macOS / Linux / WSL
+cd ~/.secretgenie/src
+git pull
+python3 -m pip install --user -e .
+```
+
+```powershell
+# Windows
+cd $env:USERPROFILE\.secretgenie\src
+git pull
+python -m pip install --user -e .
+```
+
+Or just re-run the one-line installer — it's fully idempotent.
+
+### Uninstalling
+
+```bash
+# macOS / Linux / WSL
+secretgenie uninstall --auto
+python3 -m pip uninstall -y secretgenie
+rm -rf ~/.secretgenie
+# (Optional) open ~/.zshrc (or ~/.bashrc) and delete the marked block:
+#   # >>> SecretGenie PATH (managed by install.sh) >>>
+#   export PATH="..."
+#   # <<< SecretGenie PATH <<<
+```
+
+```powershell
+# Windows
+secretgenie uninstall --auto
+python -m pip uninstall -y secretgenie
+Remove-Item -Recurse -Force $env:USERPROFILE\.secretgenie
+# (Optional) remove the user-bin entry from your user PATH in
+# Settings → Environment Variables → User
+```
+
+`secretgenie uninstall --auto` removes the git hooks and `~/.genie/` but intentionally leaves `core.hooksPath` set, so any other security tools using it keep working.
 
 ## How it works
 
