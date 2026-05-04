@@ -39,26 +39,28 @@ function Banner {
     Write-Host ""
 }
 
-# ---- Python detection (prefer `py -3`, fall back to `python`) ------------
+# ---- Python detection ----------------------------------------------------
+# Try each candidate as a single command word. We DON'T use 'py -3' here
+# because downstream call sites use `& $script:PythonCmd ...` which treats
+# the string as a single literal executable name (spaces and all) and fails
+# with "The term 'py -3' is not recognized".  Version validation later rules
+# out Python 2.x if 'py' alone happens to pick it.
 function Resolve-PythonCommand {
-    if (Get-Command py -ErrorAction SilentlyContinue) {
-        $test = & py -3 -c "import sys; print(sys.version_info[:2])" 2>$null
-        if ($LASTEXITCODE -eq 0) { return 'py -3' }
+    foreach ($cmd in @('py', 'python', 'python3')) {
+        if (-not (Get-Command $cmd -ErrorAction SilentlyContinue)) { continue }
+        try {
+            & $cmd --version 2>&1 | Out-Null
+            if ($LASTEXITCODE -eq 0) { return $cmd }
+        } catch {
+            # Broken shim on PATH - ignore and try the next candidate.
+        }
     }
-    if (Get-Command python -ErrorAction SilentlyContinue) {
-        $test = & python -c "import sys; print(sys.version_info[:2])" 2>$null
-        if ($LASTEXITCODE -eq 0) { return 'python' }
-    }
-    if (Get-Command python3 -ErrorAction SilentlyContinue) { return 'python3' }
     return $null
 }
 
 function Invoke-Python {
     param([Parameter(Mandatory)][string[]]$Args)
-    $parts = $script:PythonCmd.Split(' ')
-    $exe   = $parts[0]
-    $pre   = if ($parts.Length -gt 1) { $parts[1..($parts.Length - 1)] } else { @() }
-    & $exe @pre @Args
+    & $script:PythonCmd @Args
 }
 
 # ---- Prereq checks -------------------------------------------------------
