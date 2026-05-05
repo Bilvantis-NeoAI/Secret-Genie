@@ -617,7 +617,7 @@ def render_review(
             var j = form.justification.value.trim();
             var c = form.confirmation.value.trim();
             if (j.length < 10 || c.length < 10) {{
-                err.textContent = 'Both fields need at least 10 characters.';
+                err.textContent = 'Both fields need proper justification.';
                 return;
             }}
             try {{

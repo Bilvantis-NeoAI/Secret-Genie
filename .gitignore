@@ -19,7 +19,6 @@ __pycache__/
 .DS_Store
 Thumbs.db
 .idea/
-.vscode/
 
 # --- Secrets in .env files, with templates checked in ---
 *.env
@@ -35,3 +34,6 @@ src/hooks/scanner/*.log
 # --- Legacy release zip names ---
 /Genie-Secrets.zip
 /Genie-Secrets
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore
