@@ -73,18 +73,6 @@ class _AppState:
     saved_flags: dict[str, bool] = field(default_factory=dict)
 
 
-def _user_paths() -> dict[str, Path]:
-    home = Path.home()
-    genie = home / ".genie"
-    return {
-        "home": home,
-        "genie": genie,
-        "hooks": genie / "hooks",
-        "secret_scan": genie / "secret_scan",
-        "genie_cli": genie / "genie_cli",
-    }
-
-
 # ---------------------------------------------------------------------------
 # Route handlers
 # ---------------------------------------------------------------------------
@@ -273,13 +261,11 @@ class _Handler(BaseHTTPRequestHandler):
     def _get_install(self) -> None:
         from genie_cli.hooks_installer import check_prerequisites, is_installed
         errors = check_prerequisites()
-        paths = _user_paths()
         self._page(
             pages.render_install(
                 installed=is_installed(),
                 prerequisites_ok=not errors,
                 errors=errors,
-                hooks_path=str(paths["hooks"]),
                 action_url="install",
             ),
             title="Install", active="/install",
@@ -291,11 +277,11 @@ class _Handler(BaseHTTPRequestHandler):
         self._page(
             pages.render_install_done(
                 ok=ok,
-                title="Hooks installed" if ok else "Install failed",
+                title="You're all set" if ok else "Installation didn't complete",
                 detail=(
-                    "SecretGenie is now watching your Git pushes on this machine."
+                    "Every push from this machine is now scanned for secrets."
                     if ok
-                    else "See the terminal that launched SecretGenie for details."
+                    else "Something went wrong. Try again, or check the terminal for more detail."
                 ),
                 retry_url="install" if not ok else None,
             ),
@@ -308,11 +294,11 @@ class _Handler(BaseHTTPRequestHandler):
         self._page(
             pages.render_install_done(
                 ok=ok,
-                title="Hooks uninstalled" if ok else "Uninstall failed",
+                title="SecretGenie disabled" if ok else "Uninstall didn't complete",
                 detail=(
-                    "Your git hooks path has been preserved so other tools keep working."
+                    "Pushes from this machine are no longer being scanned. Other security tools you have set up are unaffected."
                     if ok
-                    else "See the terminal that launched SecretGenie for details."
+                    else "Something went wrong. Try again, or check the terminal for more detail."
                 ),
             ),
             title="Uninstall", active="/install",
@@ -350,7 +336,6 @@ class _Handler(BaseHTTPRequestHandler):
         self._page(
             pages.render_exclusions(
                 exclusions=exc,
-                path=sc.get_exclusions_path(),
                 saved=self.state.saved_flags.pop("exclusions", False),
                 error=self.state.saved_flags.pop("exclusions_error", ""),  # type: ignore[arg-type]
             ),
@@ -502,7 +487,6 @@ class _Handler(BaseHTTPRequestHandler):
 def _collect_dashboard_data() -> "pages.DashboardData":
     from genie_cli.hooks_installer import is_installed, _run as hook_run
 
-    paths = _user_paths()
     sc = _load_scan_config()
     scan_mode = sc.load_config().get("scan_mode", "both")
 
@@ -514,16 +498,9 @@ def _collect_dashboard_data() -> "pages.DashboardData":
         ["git", "config", "--global", "user.email"],
         capture_output=True, check=False, text=True,
     ).stdout.strip()
-    hooks_path_cfg = hook_run(
-        ["git", "config", "--global", "core.hooksPath"],
-        capture_output=True, check=False, text=True,
-    ).stdout.strip()
 
     return pages.DashboardData(
         installed=is_installed(),
-        hooks_path=str(paths["hooks"]),
-        config_path=str(paths["secret_scan"]),
-        core_hookspath=hooks_path_cfg,
         git_user=name,
         git_email=email,
         scan_mode=scan_mode,

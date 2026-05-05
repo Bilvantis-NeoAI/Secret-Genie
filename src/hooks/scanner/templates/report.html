@@ -1,299 +1,465 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>{title}</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{title} · SecretGenie</title>
+
+    <!-- Apply the saved theme before first paint to avoid a flash. -->
+
+    <script>
+    (function () {{
+        var stored = localStorage.getItem('genie-theme');
+        var preferred = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', stored || preferred);
+    }})();
+    </script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.4/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.4/vfs_fonts.js"></script>
+
     <style>
-        body {{ 
-            font-family: -apple-system, system-ui, sans-serif; 
-            margin: 20px; 
-            background: {background_color}; 
-        }}
-        .container {{ 
-            max-width: 1200px; 
-            margin: 0 auto; 
-            background: {container_background}; 
-            padding: 20px; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
-        }}
-        .header-info {{ 
-            background: {header_background}; 
-            padding: 15px; 
-            border-radius: 5px; 
-            margin-bottom: 20px;
-            border-left: 4px solid {primary_color};
-        }}
-        .header-info p {{ 
-            margin: 5px 0; 
-            color: #666;
-            font-size: 14px;
-        }}
-        .header-info strong {{ 
-            color: #333;
-            margin-right: 5px;
-        }}
-        table {{ 
-            width: 100%; 
-            border-collapse: collapse; margin-top: 20px;
-            table-layout: fixed;
-        }}
-        th, td {{ 
-            padding: 12px; 
-            text-align: left; 
-            border: 1px solid #ddd;
-            vertical-align: top;
-            overflow-wrap: break-word;
-            word-wrap: break-word;
-            word-break: break-all;
-            hyphens: auto;
-        }}
-        th {{ background: {primary_color}; color: white; }}
-        tr:nth-child(even) {{ background: #f9f9f9; }}
-        .secret-content {{ 
-            color: {error_color}; 
-            font-family: monospace;
-            white-space: pre-wrap;
-            max-width: 100%;
-            display: block;
-            overflow-x: auto;
-            padding: 4px 8px;
-            margin: 0;
-            border-radius: 4px;
-            background: rgba(211, 47, 47, 0.05);
-        }}
-        .line-number {{ 
-            color: {error_color}; 
-            font-weight: bold; 
-            text-align: center;
-        }}
-        .disallowed-file {{
-            color: {error_color};
-            font-family: monospace;
-        }}
-        .sno {{
-            text-align: center;
-        }}
-        h1, h2 {{ color: {primary_color}; margin-bottom: 20px; }}
-        .download-btn {{
-            padding: 10px 20px;
-            background-color: {primary_color};
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-bottom: 20px;
-        }}
-        .download-btn:hover {{
-            background-color: #053278;
-        }}
-        .tab-container {margin-top: 20px;
-        }
-        .tab-buttons {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .tab-button {
-            padding: 10px 20px;
-            background-color: #f0f0f0;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-        }
-        .tab-button.active {
-            background-color: {primary_color};
-            color: white;
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
+    :root {{
+        --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+                     "Helvetica Neue", Arial, sans-serif;
+        --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono",
+                     Menlo, Consolas, monospace;
+
+        --ak-blue-700: #0052cc;
+        --ak-blue-800: #0747a6;
+        --ak-blue-500: #2684ff;
+        --ak-blue-400: #4c9aff;
+        --ak-purple-500: #6554c0;
+    }}
+    html[data-theme="light"] {{
+        --bg: #ffffff;
+        --canvas: #f4f5f7;
+        --surface: #ffffff;
+        --surface-sunken: #fafbfc;
+        --surface-hover: #f4f5f7;
+        --border: #dfe1e6;
+        --text: #172b4d;
+        --text-subtle: #42526e;
+        --text-muted: #6b778c;
+        --primary: var(--ak-blue-700);
+        --primary-hover: var(--ak-blue-800);
+        --primary-text: #ffffff;
+        --danger: #de350b;
+        --danger-bg: #ffebe6;
+        --danger-border: #ffbdad;
+        --warning: #ff8b00;
+        --warning-bg: #fffae6;
+        --warning-border: #ffe380;
+        --success: #00875a;
+        --success-bg: #e3fcef;
+        --success-border: #abf5d1;
+        --shadow: 0 1px 1px rgba(9,30,66,.25), 0 0 1px rgba(9,30,66,.31);
+    }}
+    html[data-theme="dark"] {{
+        --bg: #1d2125;
+        --canvas: #161a1d;
+        --surface: #22272b;
+        --surface-sunken: #1d2125;
+        --surface-hover: #2c333a;
+        --border: #393d47;
+        --text: #e6edf3;
+        --text-subtle: #b6c2cf;
+        --text-muted: #8993a4;
+        --primary: var(--ak-blue-500);
+        --primary-hover: var(--ak-blue-400);
+        --primary-text: #091e42;
+        --danger: #ff5630;
+        --danger-bg: rgba(255,86,48,.12);
+        --danger-border: rgba(255,86,48,.4);
+        --warning: #ffab00;
+        --warning-bg: rgba(255,171,0,.12);
+        --warning-border: rgba(255,171,0,.4);
+        --success: #36b37e;
+        --success-bg: rgba(54,179,126,.1);
+        --success-border: rgba(54,179,126,.4);
+        --shadow: 0 1px 1px rgba(3,4,4,.6), 0 0 1px rgba(3,4,4,.6);
+    }}
+
+    * {{ box-sizing: border-box; }}
+    html, body {{ height: 100%; }}
+    body {{
+        margin: 0;
+        font-family: var(--font-body);
+        font-size: 14px;
+        line-height: 1.4286;
+        color: var(--text);
+        background: var(--canvas);
+        -webkit-font-smoothing: antialiased;
+    }}
+    a {{ color: var(--primary); text-decoration: none; }}
+    a:hover {{ text-decoration: underline; }}
+
+    /* App bar */
+    .app-bar {{
+        height: 56px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 24px;
+        gap: 16px;
+        position: sticky;
+        top: 0;
+        z-index: 20;
+    }}
+    .brand {{
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        font-size: 15px;
+    }}
+    .brand .mark {{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px; height: 28px;
+        border-radius: 5px;
+        background: linear-gradient(135deg, var(--ak-blue-700), var(--ak-purple-500));
+        color: white;
+        font-weight: 700;
+    }}
+    .spacer {{ flex: 1; }}
+    .theme-toggle {{
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        border-radius: 3px;
+        width: 32px; height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 15px;
+    }}
+    .theme-toggle:hover {{ background: var(--surface-hover); color: var(--text); }}
+
+    main {{ padding: 32px 40px 80px; max-width: 1040px; margin: 0 auto; }}
+    h1 {{
+        font-size: 24px;
+        font-weight: 500;
+        margin: 0 0 4px;
+        letter-spacing: -.006em;
+    }}
+    .lede {{ color: var(--text-muted); margin: 0 0 28px; }}
+    h2 {{ font-size: 16px; font-weight: 600; margin: 0 0 12px; }}
+
+    .card {{
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 20px 22px;
+        box-shadow: var(--shadow);
+        margin-bottom: 16px;
+    }}
+    .card-header {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 16px;
+    }}
+    .card-header h2 {{ margin: 0; }}
+
+    /* Banner */
+    .banner {{
+        padding: 12px 16px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        border: 1px solid;
+        line-height: 1.45;
+    }}
+    .banner .icon {{ flex-shrink: 0; font-weight: 700; }}
+    .banner.error {{ background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }}
+    .banner.warn {{ background: var(--warning-bg); color: var(--warning); border-color: var(--warning-border); }}
+    .banner.ok {{ background: var(--success-bg); color: var(--success); border-color: var(--success-border); }}
+
+    /* Key/value list */
+    .kv {{
+        display: grid;
+        grid-template-columns: 140px 1fr;
+        gap: 8px 20px;
+        font-size: 13px;
+        margin: 0;
+    }}
+    .kv dt {{ color: var(--text-muted); }}
+    .kv dd {{ margin: 0; color: var(--text); word-break: break-all; }}
+    .kv code {{
+        font-family: var(--font-mono);
+        font-size: 12.5px;
+        background: var(--surface-sunken);
+        padding: 1px 6px;
+        border-radius: 3px;
+    }}
+
+    /* Tabs */
+    .tabs {{
+        display: flex;
+        gap: 0;
+        border-bottom: 2px solid var(--border);
+        margin-bottom: 16px;
+    }}
+    .tab-btn {{
+        background: transparent;
+        border: none;
+        color: var(--text-subtle);
+        font: inherit;
+        font-size: 13.5px;
+        font-weight: 500;
+        padding: 10px 16px;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+    }}
+    .tab-btn:hover {{ color: var(--text); }}
+    .tab-btn.active {{ color: var(--primary); border-bottom-color: var(--primary); }}
+    .tab-content {{ display: none; }}
+    .tab-content.active {{ display: block; }}
+    .tab-empty {{
+        text-align: center;
+        padding: 36px 16px;
+        color: var(--text-muted);
+    }}
+    .tab-empty .big {{ font-size: 36px; line-height: 1; margin-bottom: 8px; color: var(--success); }}
+
+    /* Tables */
+    table {{ width: 100%; border-collapse: collapse; table-layout: fixed; }}
+    table th, table td {{
+        text-align: left;
+        padding: 10px 12px;
+        vertical-align: top;
+        word-break: break-word;
+    }}
+    table thead th {{
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        border-bottom: 1px solid var(--border);
+    }}
+    table tbody tr {{ border-bottom: 1px solid var(--border); }}
+    table tbody tr:last-child {{ border-bottom: none; }}
+    table tbody tr:hover {{ background: var(--surface-sunken); }}
+    table thead th:nth-child(1), table tbody td:nth-child(1) {{ width: 5%; text-align: right; color: var(--text-muted); }}
+    table thead th:nth-child(2), table tbody td:nth-child(2) {{ width: 28%; font-family: var(--font-mono); font-size: 12.5px; color: var(--text); }}
+    table thead th:nth-child(3), table tbody td:nth-child(3) {{ width: 7%; text-align: right; color: var(--text-muted); }}
+    table thead th:nth-child(4), table tbody td:nth-child(4) {{ width: 60%; }}
+
+    .secret-content {{
+        background: var(--surface-sunken);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        padding: 4px 8px;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--danger);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        max-width: 100%;
+        display: inline-block;
+    }}
+
+    /* Buttons */
+    .btn {{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 6px 14px;
+        min-height: 32px;
+        font: inherit;
+        font-weight: 500;
+        color: var(--text-subtle);
+        background: var(--surface-hover);
+        border: 1px solid transparent;
+        border-radius: 3px;
+        cursor: pointer;
+        text-decoration: none;
+    }}
+    .btn:hover {{ background: var(--border); color: var(--text); text-decoration: none; }}
+    .btn.primary {{ background: var(--primary); color: var(--primary-text); }}
+    .btn.primary:hover {{ background: var(--primary-hover); color: var(--primary-text); }}
     </style>
 </head>
 <body>
-    <div class="container">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h1>{title}</h1>
-            <button id="downloadButton" class="download-btn">Download as PDF</button>
+    <header class="app-bar">
+        <div class="brand">
+            <span class="mark">✦</span>
+            <span>SecretGenie</span>
         </div>
-        <div class="header-info">
-            <p><strong>Git Author:</strong> {git_metadata[author]}</p>
-            <p><strong>Repository:</strong> {git_metadata[repo_name]}</p>
-            <p><strong>Branch:</strong> {git_metadata[branch]}</p>
-            <p><strong>Commit Hash:</strong> {git_metadata[commit_hash]}</p>
-            <p><strong>Timestamp:</strong> {git_metadata[timestamp]}</p>
+        <div class="spacer"></div>
+        <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle theme"></button>
+    </header>
+
+    <main>
+        <h1>Push scan report</h1>
+        <p class="lede">Findings from the most recent push, with secret content masked.</p>
+
+        <div class="card">
+            <h2>Commit details</h2>
+            <dl class="kv">
+                <dt>Repository</dt><dd><code>{git_metadata[repo_name]}</code></dd>
+                <dt>Branch</dt><dd><code>{git_metadata[branch]}</code></dd>
+                <dt>Author</dt><dd>{git_metadata[author]}</dd>
+                <dt>Commit hash</dt><dd><code>{git_metadata[commit_hash]}</code></dd>
+                <dt>Timestamp</dt><dd>{git_metadata[timestamp]}</dd>
+            </dl>
         </div>
+
         {disallowed_files_section}
 
-        <div class="tab-container">
-            <div class="tab-buttons">
-                <button class="tab-button active" onclick="showTab('diff-scan')">Diff Scan Results</button>
-                <button class="tab-button" onclick="showTab('repo-scan')">Repository Scan Results</button>
+        <div class="banner warn" id="findings-banner">
+            <span class="icon">!</span>
+            <div>
+                <strong>Findings can include false positives.</strong>
+                Apply your judgement when reviewing each entry.
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>Findings</h2>
+                <button id="downloadButton" class="btn">Download as PDF</button>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showTab('diff-scan')">Diff scan</button>
+                <button class="tab-btn" onclick="showTab('repo-scan')">Repository scan</button>
             </div>
 
             <div id="diff-scan" class="tab-content active">
-                <h2>Diff Scan - Potential Secrets Found:</h2>
                 <table id="diffSecretsTable">
-                    <tr>
-                        <th style="width:5%">S.No</th>
-                        <th style="width:25%">Filename</th>
-                        <th style="width:10%">Line #</th>
-                        <th style="width:60%">Secret</th>
-                    </tr>
-                    {diff_secrets_table_rows}
+                    <thead>
+                        <tr><th>#</th><th>File</th><th>Line</th><th>Content (masked)</th></tr>
+                    </thead>
+                    <tbody>
+                        {diff_secrets_table_rows}
+                    </tbody>
                 </table>
             </div>
 
             <div id="repo-scan" class="tab-content">
-                <h2>Repository Scan - Potential Secrets Found:</h2>
                 <table id="repoSecretsTable">
-                    <tr>
-                        <th style="width:5%">S.No</th>
-                        <th style="width:25%">Filename</th>
-                        <th style="width:10%">Line #</th>
-                        <th style="width:60%">Secret</th>
-                    </tr>
-                    {repo_secrets_table_rows}
+                    <thead>
+                        <tr><th>#</th><th>File</th><th>Line</th><th>Content (masked)</th></tr>
+                    </thead>
+                    <tbody>
+                        {repo_secrets_table_rows}
+                    </tbody>
                 </table>
             </div>
         </div>
-    </div>
+    </main>
+
     <script>
-    function showTab(tabId) {
-        // Hide all tabs
-        document.querySelectorAll('.tab-content').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        document.querySelectorAll('.tab-button').forEach(button => {
-            button.classList.remove('active');
-        });
+    function toggleTheme() {{
+        var cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+        var next = cur === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        try {{ localStorage.setItem('genie-theme', next); }} catch (e) {{}}
+        var btn = document.getElementById('theme-toggle');
+        if (btn) btn.textContent = next === 'dark' ? '☀' : '☾';
+    }}
 
-        // Show selected tab
-        document.getElementById(tabId).classList.add('active');
-        document.querySelector(`[onclick="showTab('${tabId}')"]`).classList.add('active');
-    }
+    document.addEventListener('DOMContentLoaded', function () {{
+        var btn = document.getElementById('theme-toggle');
+        var t = document.documentElement.getAttribute('data-theme');
+        if (btn) btn.textContent = t === 'dark' ? '☀' : '☾';
 
-    document.getElementById("downloadButton").addEventListener("click", () => {
-        // Get diff scan secrets
-        const diffSecretsTable = document.getElementById("diffSecretsTable");
-        const diffSecretRows = diffSecretsTable.querySelectorAll("tr:not(:first-child)");
-        const diffSecrets = Array.from(diffSecretRows).map((row, index) => {
-            const cells = row.querySelectorAll("td");
-            return {
-                sno: cells[0]?.innerText || "",
-                filename: cells[1]?.innerText || "",
-                lineNumber: cells[2]?.innerText || "",
-                secret: cells[3]?.innerText || ""
-            };
-        });
+        // If a tab has no rows, show a friendly empty state.
+        ['diffSecretsTable', 'repoSecretsTable'].forEach(function (tableId) {{
+            var t = document.getElementById(tableId);
+            if (!t) return;
+            var bodyRows = t.querySelectorAll('tbody tr');
+            if (bodyRows.length === 0) {{
+                var container = t.parentElement;
+                container.innerHTML = '<div class="tab-empty"><div class="big">✓</div>No findings in this tab.</div>';
+            }}
+        }});
+    }});
 
-        // Get repo scan secrets
-        const repoSecretsTable = document.getElementById("repoSecretsTable");
-        const repoSecretRows = repoSecretsTable.querySelectorAll("tr:not(:first-child)");
-        const repoSecrets = Array.from(repoSecretRows).map((row, index) => {
-            const cells = row.querySelectorAll("td");
-            return {
-                sno: cells[0]?.innerText || "",
-                filename: cells[1]?.innerText || "",
-                lineNumber: cells[2]?.innerText || "",
-                secret: cells[3]?.innerText || ""
-            };
-        });
+    function showTab(tabId) {{
+        document.querySelectorAll('.tab-content').forEach(function (el) {{ el.classList.remove('active'); }});
+        document.querySelectorAll('.tab-btn').forEach(function (el) {{ el.classList.remove('active'); }});
+        var target = document.getElementById(tabId);
+        if (target) target.classList.add('active');
+        document.querySelectorAll('.tab-btn').forEach(function (el) {{
+            if (el.getAttribute('onclick') === "showTab('" + tabId + "')") el.classList.add('active');
+        }});
+    }}
 
-        // Create file name using current date
-        const currentDate = new Date();
-        const formattedDate = currentDate.toLocaleDateString('en-GB', {
-            day: '2-digit', month: 'short', year: 'numeric'
-        }).replace(' ', '_').replace(',', '');
-        const fileName = 'scan_report_' + formattedDate + '.pdf';
+    document.getElementById('downloadButton').addEventListener('click', function () {{
+        function rowsFromTable(tableId) {{
+            var t = document.getElementById(tableId);
+            if (!t) return [];
+            return Array.prototype.slice.call(t.querySelectorAll('tbody tr')).map(function (row, i) {{
+                var cells = row.querySelectorAll('td');
+                return [
+                    {{ text: (cells[0] && cells[0].innerText) || (i + 1).toString(), alignment: 'right' }},
+                    (cells[1] && cells[1].innerText) || '',
+                    {{ text: (cells[2] && cells[2].innerText) || '', alignment: 'right' }},
+                    (cells[3] && cells[3].innerText) || ''
+                ];
+            }});
+        }}
 
-        // Create the PDF document definition
-        const docDefinition = {
+        var diffRows = rowsFromTable('diffSecretsTable');
+        var repoRows = rowsFromTable('repoSecretsTable');
+
+        var headerRow = [
+            {{ text: '#', bold: true, fillColor: '#dfe1e6', alignment: 'right' }},
+            {{ text: 'File', bold: true, fillColor: '#dfe1e6' }},
+            {{ text: 'Line', bold: true, fillColor: '#dfe1e6', alignment: 'right' }},
+            {{ text: 'Content (masked)', bold: true, fillColor: '#dfe1e6' }}
+        ];
+
+        var diffBody = diffRows.length > 0
+            ? [headerRow].concat(diffRows)
+            : [headerRow, [{{ text: 'No findings.', colSpan: 4, alignment: 'center', italics: true, color: '#6b778c' }}, {{}}, {{}}, {{}}]];
+        var repoBody = repoRows.length > 0
+            ? [headerRow].concat(repoRows)
+            : [headerRow, [{{ text: 'No findings.', colSpan: 4, alignment: 'center', italics: true, color: '#6b778c' }}, {{}}, {{}}, {{}}]];
+
+        var now = new Date();
+        var fileName = 'secretgenie_report_'
+            + now.getFullYear() + '-'
+            + String(now.getMonth() + 1).padStart(2, '0') + '-'
+            + String(now.getDate()).padStart(2, '0')
+            + '.pdf';
+
+        var docDefinition = {{
             pageOrientation: 'landscape',
             content: [
-                { text: '{title}', style: 'header' },
-                { text: `Git Author: {git_metadata[author]}`, style: 'info' },
-                { text: `Repository: {git_metadata[repo_name]}`, style: 'info' },
-                { text: `Branch: {git_metadata[branch]}`, style: 'info' },
-                { text: `Commit Hash: {git_metadata[commit_hash]}`, style: 'info' },
-                { text: `Timestamp: {git_metadata[timestamp]}`, style: 'info' },
-                
-                // Diff Scan Section
-                { text: 'Diff Scan - Potential Secrets Found:', style: 'subheader' },
-                {
-                    table: {
-                        headerRows: 1,
-                        widths: ['5%', '25%', '10%', '60%'],
-                        body: [
-                            [
-                                { text: 'S.No', fillColor: '#E9E5E5', bold: true, alignment: 'center' },
-                                { text: 'Filename', fillColor: '#E9E5E5', bold: true },
-                                { text: 'Line #', fillColor: '#E9E5E5', bold: true, alignment: 'center' },
-                                { text: 'Secret', fillColor: '#E9E5E5', bold: true }
-                            ],
-                            ...diffSecrets.map((secret, index) => [
-                                { text: secret.sno, alignment: 'center' },
-                                secret.filename,
-                                { text: secret.lineNumber, alignment: 'center' },
-                                secret.secret
-                            ])
-                        ]
-                    },
-                    margin: [0, 0, 0, 20]
-                },
-
-                // Repo Scan Section
-                { text: 'Repository Scan - Potential Secrets Found:', style: 'subheader' },
-                {
-                    table: {
-                        headerRows: 1,
-                        widths: ['5%', '25%', '10%', '60%'],
-                        body: [
-                            [
-                                { text: 'S.No', fillColor: '#E9E5E5', bold: true, alignment: 'center' },
-                                { text: 'Filename', fillColor: '#E9E5E5', bold: true },
-                                { text: 'Line #', fillColor: '#E9E5E5', bold: true, alignment: 'center' },
-                                { text: 'Secret', fillColor: '#E9E5E5', bold: true }
-                            ],
-                            ...repoSecrets.map((secret, index) => [
-                                { text: secret.sno, alignment: 'center' },
-                                secret.filename,
-                                { text: secret.lineNumber, alignment: 'center' },
-                                secret.secret
-                            ])
-                        ]
-                    }
-                }
+                {{ text: 'SecretGenie - Pre-push scan report', style: 'header' }},
+                {{ text: 'Repository: {git_metadata[repo_name]}', style: 'info' }},
+                {{ text: 'Branch:     {git_metadata[branch]}', style: 'info' }},
+                {{ text: 'Author:     {git_metadata[author]}', style: 'info' }},
+                {{ text: 'Commit:     {git_metadata[commit_hash]}', style: 'info' }},
+                {{ text: 'Timestamp:  {git_metadata[timestamp]}', style: 'info' }},
+                {{ text: 'Diff scan', style: 'subheader' }},
+                {{ table: {{ headerRows: 1, widths: ['5%', '28%', '7%', '60%'], body: diffBody }} }},
+                {{ text: 'Repository scan', style: 'subheader', margin: [0, 16, 0, 8] }},
+                {{ table: {{ headerRows: 1, widths: ['5%', '28%', '7%', '60%'], body: repoBody }} }}
             ],
-            styles: {
-                header: {
-                    fontSize: 18,
-                    bold: true,
-                    alignment: 'center',
-                    margin: [0, 0, 0, 10]
-                },
-                subheader: {
-                    fontSize: 14,
-                    bold: true,
-                    margin: [0, 10, 0, 5]
-                },
-                info: {
-                    fontSize: 12,
-                    margin: [0, 2, 0, 2]
-                }
-            }
-        };
+            styles: {{
+                header: {{ fontSize: 16, bold: true, margin: [0, 0, 0, 12] }},
+                subheader: {{ fontSize: 12, bold: true, margin: [0, 8, 0, 4] }},
+                info: {{ fontSize: 10, margin: [0, 1, 0, 1] }}
+            }},
+            defaultStyle: {{ fontSize: 9 }}
+        }};
 
-        // Generate and download the PDF
         pdfMake.createPdf(docDefinition).download(fileName);
-    });
+    }});
     </script>
 </body>
-</html> 
+</html>

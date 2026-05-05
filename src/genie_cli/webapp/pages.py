@@ -62,12 +62,9 @@ def render_findings_table(findings: Iterable[dict[str, Any]]) -> str:
 @dataclass
 class DashboardData:
     installed: bool
-    hooks_path: str
-    config_path: str
-    core_hookspath: str
+    scan_mode: str
     git_user: str
     git_email: str
-    scan_mode: str
 
 
 def render_dashboard(data: DashboardData) -> str:
@@ -83,20 +80,24 @@ def render_dashboard(data: DashboardData) -> str:
         else '<a class="btn primary" href="install">Install hooks →</a>'
     )
 
+    status_value = "Active" if data.installed else "Inactive"
+    status_class = "ok" if data.installed else "bad"
+    status_sub = "Watching every push" if data.installed else "Not protecting this machine yet"
+
     stats = f"""
     <div class="stats">
         <div class="stat">
-            <div class="label">Hooks</div>
-            <div class="value {'ok' if data.installed else 'bad'}">{('Active' if data.installed else 'Inactive')}</div>
-            <div class="sub">{esc(data.hooks_path)}</div>
+            <div class="label">Status</div>
+            <div class="value {status_class}">{status_value}</div>
+            <div class="sub">{status_sub}</div>
         </div>
         <div class="stat">
-            <div class="label">Pre-push scan mode</div>
+            <div class="label">Scan on push</div>
             <div class="value">{esc(data.scan_mode.title())}</div>
-            <div class="sub"><a href="config">Configure →</a></div>
+            <div class="sub"><a href="config">Change &rarr;</a></div>
         </div>
         <div class="stat">
-            <div class="label">Git identity</div>
+            <div class="label">Signed in as</div>
             <div class="value" style="font-size:15px">{esc(data.git_user) or '—'}</div>
             <div class="sub">{esc(data.git_email) or 'not set'}</div>
         </div>
@@ -113,33 +114,19 @@ def render_dashboard(data: DashboardData) -> str:
             <div>
                 <strong>Scan this repository</strong>
                 <p style="color:var(--text-muted); margin:4px 0 12px;">
-                    Run a full secret scan on the current repository and view the findings here.
+                    Check every tracked file for accidentally committed secrets. Results show right here.
                 </p>
                 <a class="btn primary" href="scan/run">Start scan</a>
             </div>
             <div>
-                <strong>Configure scanning</strong>
+                <strong>Tune your settings</strong>
                 <p style="color:var(--text-muted); margin:4px 0 12px;">
-                    Change scan mode, edit exclusion patterns, review what gets skipped.
+                    Choose what gets scanned on every push and which files to skip.
                 </p>
                 <a class="btn" href="config">Open settings</a>
             </div>
         </div>
-    </div>
-    """
-
-    details = f"""
-    <div class="card">
-        <h2>Installation details</h2>
-        <dl class="kv">
-            <dt>Install status</dt><dd>{install_tag}</dd>
-            <dt>Hooks directory</dt><dd><code>{esc(data.hooks_path)}</code></dd>
-            <dt>Scanner directory</dt><dd><code>{esc(data.config_path)}</code></dd>
-            <dt>Git core.hooksPath</dt><dd><code>{esc(data.core_hookspath) or '(unset)'}</code></dd>
-            <dt>Git user.name</dt><dd>{esc(data.git_user) or "<span class='tag bad'>unset</span>"}</dd>
-            <dt>Git user.email</dt><dd>{esc(data.git_email) or "<span class='tag bad'>unset</span>"}</dd>
-        </dl>
-        <div class="actions">
+        <div class="actions" style="margin-top: 20px;">
             {install_cta}
         </div>
     </div>
@@ -147,10 +134,9 @@ def render_dashboard(data: DashboardData) -> str:
 
     return f"""
     <h1>Dashboard</h1>
-    <p class="lede">Everything SecretGenie is doing on this machine.</p>
+    <p class="lede">Local secret scanning for everything you push from this machine.</p>
     {stats}
     {quickstart}
-    {details}
     """
 
 
@@ -164,37 +150,37 @@ def render_install(
     installed: bool,
     prerequisites_ok: bool,
     errors: list[str],
-    hooks_path: str,
     action_url: str,
 ) -> str:
     status_banner = ""
     if installed:
         status_banner = (
             "<div class='banner ok'><span class='icon'>✓</span>"
-            "<div><strong>Already installed.</strong> Re-running installation will "
-            "refresh the hook files to the current version.</div></div>"
+            "<div><strong>SecretGenie is already enabled on this machine.</strong> "
+            "Continue to refresh to the latest version.</div></div>"
         )
 
     if errors:
         items = "".join(f"<li>{esc(e)}</li>" for e in errors)
         status_banner += (
             f"<div class='banner error'><span class='icon'>✕</span>"
-            f"<div><strong>Prerequisites not met.</strong><ul style='margin:6px 0 0; padding-left:18px;'>{items}</ul></div></div>"
+            f"<div><strong>A few things need to be set up first.</strong>"
+            f"<ul style='margin:6px 0 0; padding-left:18px;'>{items}</ul></div></div>"
         )
 
-    steps = f"""
+    steps = """
     <div class="card">
-        <h2>What will happen</h2>
-        <ol style="margin:0; padding-left:20px; color:var(--text-subtle); line-height:1.8;">
-            <li>Copy hook scripts into <code>{esc(hooks_path)}</code>.</li>
-            <li>Set <code>git config --global core.hooksPath</code> to that directory.</li>
-            <li>Register git aliases so <code>git scan-config</code> and <code>git secret-scan</code> work.</li>
-            <li>Existing hooks configured by other tools are preserved on uninstall.</li>
-        </ol>
+        <h2>What this does</h2>
+        <ul style="margin:0; padding-left:20px; color:var(--text-subtle); line-height:1.8;">
+            <li>Enables automatic secret scanning every time you push.</li>
+            <li>Works the same way from your terminal, VS Code, IntelliJ, GitKraken, GitHub Desktop &mdash; anywhere you push from.</li>
+            <li>Runs entirely on your machine. Nothing is ever sent to a server.</li>
+            <li>Plays nicely with any other security tools you already have set up.</li>
+        </ul>
     </div>
     """
 
-    proceed_label = "Reinstall hooks" if installed else "Install hooks"
+    proceed_label = "Refresh installation" if installed else "Enable SecretGenie"
     disabled = "" if prerequisites_ok else "disabled"
 
     form = f"""
@@ -206,9 +192,16 @@ def render_install(
     </form>
     """
 
+    title = "Refresh SecretGenie" if installed else "Enable SecretGenie"
+    lede = (
+        "Your push will be scanned for credentials and secrets before it leaves your machine."
+        if not installed
+        else "Update to the latest scanner and configuration."
+    )
+
     return f"""
-    <h1>{"Reinstall" if installed else "Install"} hooks</h1>
-    <p class="lede">SecretGenie installs a pre-push hook globally via <code>core.hooksPath</code>.</p>
+    <h1>{title}</h1>
+    <p class="lede">{lede}</p>
     {status_banner}
     {steps}
     {form}
@@ -277,24 +270,22 @@ def render_config(*, current_mode: str, saved: bool = False) -> str:
     )
 
     return f"""
-    <h1>Configuration</h1>
+    <h1>Settings</h1>
     <p class="lede">
-        Controls how the <strong>pre-push hook</strong> scans your repository
-        when you run <code>git push</code>. Manual scans started from the
-        <a href="scan">Scan</a> page always run a full repository scan and
-        ignore this setting.
+        Choose how SecretGenie scans your repository when you push.
+        The <a href="scan">Scan</a> page always performs a full check, regardless of this setting.
     </p>
     {saved_banner}
     <form method="post" action="config">
         <div class="card">
-            <h2>Pre-push scan mode</h2>
+            <h2>Scan on push</h2>
             <div class="radio-group">
                 {"".join(options)}
             </div>
         </div>
         <div class="actions">
             <a class="btn subtle" href="">Cancel</a>
-            <button class="btn primary" type="submit">Save configuration</button>
+            <button class="btn primary" type="submit">Save settings</button>
         </div>
     </form>
     <script>
@@ -314,7 +305,7 @@ def render_config(*, current_mode: str, saved: bool = False) -> str:
 # ---------------------------------------------------------------------------
 
 
-def render_exclusions(*, exclusions: dict, path: str, saved: bool = False, error: str = "") -> str:
+def render_exclusions(*, exclusions: dict, saved: bool = False, error: str = "") -> str:
     pretty = json.dumps(exclusions, indent=2)
     saved_banner = (
         "<div class='banner ok'><span class='icon'>✓</span><div><strong>Saved.</strong></div></div>"
@@ -336,21 +327,21 @@ def render_exclusions(*, exclusions: dict, path: str, saved: bool = False, error
     return f"""
     <h1>Exclusions</h1>
     <p class="lede">
-        Glob patterns that tell SecretGenie to skip files or directories.
-        Stored at <code>{esc(path)}</code>.
+        Files and folders SecretGenie will skip during a scan. Use glob patterns
+        to match anything you don't want flagged.
     </p>
     {saved_banner}
     {error_banner}
     <div class="card">
         <div class="card-header">
-            <h2>Pattern list</h2>
+            <h2>Patterns</h2>
             <div class="tag">{summary}</div>
         </div>
         <form method="post" action="exclusions">
             <textarea name="exclusions" spellcheck="false" rows="22" style="min-height:420px">{esc(pretty)}</textarea>
             <div class="actions">
                 <a class="btn subtle" href="">Cancel</a>
-                <button class="btn primary" type="submit">Save exclusions</button>
+                <button class="btn primary" type="submit">Save</button>
             </div>
         </form>
     </div>
@@ -364,17 +355,16 @@ def render_exclusions(*, exclusions: dict, path: str, saved: bool = False, error
 
 def render_scan_idle() -> str:
     return """
-    <h1>Scan repository</h1>
-    <p class="lede">Run a one-shot full scan of the current repository.</p>
+    <h1>Scan this repository</h1>
+    <p class="lede">Check every tracked file for accidentally committed secrets.</p>
     <div class="card">
-        <h2>Ready to scan</h2>
+        <h2>Ready when you are</h2>
         <p style="color:var(--text-muted); margin-top:6px;">
-            Every scan from here checks every tracked file in the repository.
-            The scan-mode setting on the <a href="config">Configuration</a> page
-            applies to automated pre-push scans only.
+            A scan from here looks at every file in the repository, regardless of your push settings.
+            Findings will appear on this page when the scan finishes.
         </p>
         <div class="actions left">
-            <a class="btn primary large" href="scan/run">Start scan →</a>
+            <a class="btn primary large" href="scan/run">Start scan &rarr;</a>
         </div>
     </div>
     """
@@ -555,16 +545,16 @@ def render_review(
     pretty_timeout = _format_duration(timeout_seconds)
 
     return f"""
-    <h1>Approve this push</h1>
+    <h1>Review this push</h1>
     <p class="lede">
-        Your Git client doesn't have a terminal to show an interactive prompt, so we opened
-        this page instead. Review the findings below, then approve or abort.
+        Your push is on hold. Review each finding below, then either approve to continue
+        or abort to stop the push.
     </p>
     <div class="banner warn">
         <span class="icon">⚠</span>
         <div>
             <strong>{len(findings)} potential secret(s) detected.</strong>
-            Waiting up to <strong>{esc(pretty_timeout)}</strong> for your decision.
+            This page will close automatically after <strong>{esc(pretty_timeout)}</strong> if no decision is made.
         </div>
     </div>
     <div class="card">
@@ -574,18 +564,18 @@ def render_review(
     <form id="review-form" class="card" autocomplete="off">
         <h2>Approval</h2>
         <label class="field">
-            <span class="label">Justification <span class="hint">(min 10 chars — why this is acceptable)</span></span>
+            <span class="label">Why is this safe to push? <span class="hint">(min 10 chars)</span></span>
             <textarea name="justification" rows="3" required minlength="10"
                 placeholder="e.g. test fixture, not a real credential"></textarea>
         </label>
         <label class="field">
-            <span class="label">Confirmation <span class="hint">(min 10 chars — confirm no live secrets are committed)</span></span>
+            <span class="label">Confirm there are no live secrets in this push <span class="hint">(min 10 chars)</span></span>
             <textarea name="confirmation" rows="3" required minlength="10"
                 placeholder="e.g. reviewed each finding, none are real credentials"></textarea>
         </label>
         <p style="color:var(--text-muted); font-size:13px; margin:4px 0 0;">
-            SecretGenie uses regex and entropy heuristics. Results may contain false positives or
-            miss real secrets — your responses are recorded in the commit message.
+            Findings can include false positives. Your responses are saved alongside this commit
+            for audit purposes.
         </p>
         <div class="actions">
             <button class="btn danger" type="button" id="abort-btn">Abort push</button>
@@ -631,7 +621,7 @@ def render_review(
             }}
             try {{
                 await post({submit_url!r}, {{ justification: j, confirmation: c }});
-                renderDone(true, 'Push approved', 'Returning to your Git client…');
+                renderDone(true, 'Push approved', 'Your push is continuing.');
             }} catch (ex) {{
                 err.textContent = 'Could not submit: ' + ex.message;
             }}
@@ -640,7 +630,7 @@ def render_review(
         abortBtn.addEventListener('click', async function () {{
             try {{
                 await post({abort_url!r}, {{}});
-                renderDone(false, 'Push aborted', 'Remove the findings from your commit, then push again.');
+                renderDone(false, 'Push aborted', 'Remove the flagged content from your commits, then push again.');
             }} catch (ex) {{
                 err.textContent = 'Could not submit: ' + ex.message;
             }}
