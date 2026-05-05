@@ -564,12 +564,13 @@ def render_review(
     <form id="review-form" class="card" autocomplete="off">
         <h2>Approval</h2>
         <label class="field">
-            <span class="label">Why is this safe to push? <span class="hint">(min 10 chars)</span></span>
+            <span class="label">Why is this safe to push?</span>
+       
             <textarea name="justification" rows="3" required minlength="10"
                 placeholder="e.g. test fixture, not a real credential"></textarea>
         </label>
         <label class="field">
-            <span class="label">Confirm there are no live secrets in this push <span class="hint">(min 10 chars)</span></span>
+            <span class="label">Confirm there are no live secrets in this push</span>
             <textarea name="confirmation" rows="3" required minlength="10"
                 placeholder="e.g. reviewed each finding, none are real credentials"></textarea>
         </label>
